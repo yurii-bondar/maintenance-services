@@ -6,26 +6,91 @@ services:
   postgres:
     image: postgres:latest
     container_name: postgres
-    environment:
-      POSTGRES_USER: yurii.bondar
-      POSTGRES_PASSWORD: strong#999
+    env_file:
+      - .env
     volumes:
-      - /home/yurii/db-storage/sql/postgres:/var/lib/postgresql/data
+      - $HOME/db-storage/sql/postgres:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_EXTERNAL_PORT}:${POSTGRES_INTERNAL_PORT}"
+    networks:
+      - maintenance
+
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    env_file:
+      - .env
+    volumes:
+      - $HOME/db-storage/sql/mariadb:/var/lib/mysql
+    ports:
+      - "${MARIADB_EXTERNAL_PORT}:${MARIADB_INTERNAL_PORT}"
     networks:
       - maintenance
 
   mongodb:
     image: mongo:latest
     container_name: mongodb
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: yurii.bondar
-      MONGO_INITDB_ROOT_PASSWORD: strong#999
+    env_file:
+      - .env
     volumes:
-      - /home/yurii/db-storage/no-sql/mongodb:/data/db
+      - $HOME/db-storage/nosql/mongodb:/data/db
     ports:
-      - "27017:27017"
+      - "${MONGO_EXTERNAL_PORT}:${MONGO_INTERNAL_PORT}"
+    networks:
+      - maintenance
+
+  couchdb:
+    image: couchdb:latest
+    container_name: couchdb
+    env_file:
+      - .env
+    volumes:
+      - $HOME/db-storage/nosql/couchdb:/opt/couchdb/data
+    ports:
+      - "${COUCHDB_EXTERNAL_PORT}:${COUCHDB_INTERNAL_PORT}"
+    networks:
+      - maintenance
+
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb
+    ports:
+      - "${DYNAMODB_EXTERNAL_PORT}:${DYNAMODB_INTERNAL_PORT}"
+    command: -jar DynamoDBLocal.jar -sharedDb
+    volumes:
+      - $HOME/db-storage/nosql/dynamodb:/home/dynamodblocal/data
+    networks:
+      - maintenance
+
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin:latest
+    container_name: dynamodb-admin
+    env_file:
+      - .env
+    ports:
+      - "${DYNAMODB_ADMIN_EXTERNAL_PORT}:${DYNAMODB_ADMIN_INTERNAL_PORT}"
+    depends_on:
+      - dynamodb
+    networks:
+      - maintenance
+
+  redis-auth:
+    image: redis:latest
+    container_name: redis-auth
+    env_file:
+      - .env
+    command:
+      - redis-server
+      - --requirepass ${REDIS_PASSWORD}
+      - --user ${REDIS_USER} on +@all ~* >${REDIS_PASSWORD}
+      - --appendonly yes
+      - --save 60 1
+      - --dbfilename dump.rdb
+      - --dir /data
+    ports:
+      - "${REDIS_AUTH_EXTERNAL_PORT}:${REDIS_INTERNAL_PORT}"
+    volumes:
+      - $HOME/db-storage/nosql/redis:/data
     networks:
       - maintenance
 
@@ -33,7 +98,7 @@ services:
     image: redis:latest
     container_name: redis
     ports:
-      - "6379:6379"
+      - "${REDIS_EXTERNAL_PORT}:${REDIS_INTERNAL_PORT}"
     networks:
       - maintenance
 
